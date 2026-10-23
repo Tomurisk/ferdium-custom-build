@@ -65,6 +65,10 @@ jobs:
           submodules: recursive
           fetch-depth: 0
 
+      - name: Patch
+        run: |
+          git checkout 764f82f -- pnpm-lock.yaml package.json .nvmrc || true
+
       - name: Use Node.js
         uses: actions/setup-node@main
         with:
@@ -94,7 +98,9 @@ jobs:
       - name: Check Electron version
         id: check_electron
         run: |
-          LATEST_ELECTRON=$(npm view electron@^44.0.0 version)
+          RAW_VERSION=$(npm view electron@^44.0.0 version | tail -n 1)
+          LATEST_ELECTRON=$(echo "$RAW_VERSION" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n 1)
+          
           echo "LATEST_ELECTRON=$LATEST_ELECTRON" >> $GITHUB_ENV
 
           echo "Latest Electron on npm:   $LATEST_ELECTRON"
@@ -122,9 +128,7 @@ jobs:
       - name: Bump Electron locally
         if: env.SKIP_BUILD != 'true'
         run: |
-          jq --arg ver "$LATEST_ELECTRON" '.devDependencies.electron = \
-            $ver' package.json > package.tmp && mv package.tmp package.json
-          
+          jq --arg ver "$LATEST_ELECTRON" '.devDependencies.electron = $ver' package.json > package.tmp && mv package.tmp package.json
           pnpm install --lockfile-only
 
       - name: Install node dependencies
